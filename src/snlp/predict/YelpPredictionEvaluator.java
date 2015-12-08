@@ -1,7 +1,7 @@
 /**
  * 
  */
-package nlp.predict;
+package snlp.predict;
 
 import java.util.List;
 

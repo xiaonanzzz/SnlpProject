@@ -1,16 +1,16 @@
 /**
  * 
  */
-package nlp.predict.baseline;
+package snlp.predict.baseline;
 
 import java.io.IOException;
 import java.util.List;
 
-import nlp.predict.Predictor;
-import nlp.predict.YelpPredictionEvaluator;
 import nlp.util.Counter;
 import snlp.data.yelp.ReviewReader;
 import snlp.data.yelp.entity.ReviewStars;
+import snlp.predict.Predictor;
+import snlp.predict.YelpPredictionEvaluator;
 
 /**
  * @author Alex
