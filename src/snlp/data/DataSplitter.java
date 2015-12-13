@@ -103,8 +103,8 @@ public class DataSplitter {
 	
 	public static void main(String[] args) {
 		
-		DataSplitter dataSplitter = new DataSplitter("./data/yelp_academic_dataset_review.json", "./data");
-		dataSplitter.splitByLines("-review.json", 0.1, 0.1);
+		DataSplitter dataSplitter = new DataSplitter("./data/reviewstars.json", "./data");
+		dataSplitter.splitByLines("-reviewstars.json", 0.1, 0.1);
 	}
 
 }

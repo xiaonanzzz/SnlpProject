@@ -39,7 +39,7 @@ public class ReviewReader {
 		int count = 0;
 		for (String line = bufferReader.readLine(); line != null; line = bufferReader.readLine()){
 			if (count++ >= amount) break;
-			if (count % 10000 == 0) System.out.printf("Read %d reviews\n", count);
+//			if (count % 10000 == 0) System.out.printf("Read %d reviews\n", count);
 			ReviewStars reviewStars = objectMapper.readValue(line, ReviewStars.class);
 			rsList.add(reviewStars);
 		}

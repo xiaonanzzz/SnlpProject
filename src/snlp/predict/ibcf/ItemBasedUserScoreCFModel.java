@@ -20,24 +20,22 @@ import snlp.predict.baseline.StatisticPrediction;
  * @author Alex
  *
  */
-public class ItemBasedCFModel implements Predictor{
+public class ItemBasedUserScoreCFModel implements Predictor{
 	
 	List<ReviewStars> trainData;
 	Map<String, List<ReviewStars>> usersExperience;
+	Map<String, Double> usersAvgScores;
 	ItemSimilarityModel itemSimilarityModel;
-	ReviewStatistic reviewStatistic;
 	double defaultStar = 4;
 	int newUserCount = 0;
 	int neverReviewCount = 0;
 	int newBusinessCount = 0;
 	
 	
-	public ItemBasedCFModel(List<ReviewStars> trainData, ItemSimilarityModel itemSimilarityModel,
-			ReviewStatistic reviewStatistic, double defaultStar) {
+	public ItemBasedUserScoreCFModel(List<ReviewStars> trainData, ItemSimilarityModel itemSimilarityModel, double defaultStar) {
 		super();
 		this.trainData = trainData;
 		this.itemSimilarityModel = itemSimilarityModel;
-		this.reviewStatistic = reviewStatistic;
 		this.defaultStar = defaultStar;
 	}
 
@@ -47,51 +45,33 @@ public class ItemBasedCFModel implements Predictor{
 			throw new RuntimeException("itemSimilarityModel == null");
 		if (usersExperience == null)
 			throw new RuntimeException("usersExperience == null");
-		
-		double businessAvg = reviewStatistic.businessAvg(businessId);
+		if (usersAvgScores == null)
+			throw new RuntimeException("usersAvgScores == null");
 		
 		List<ReviewStars> pastReviews = usersExperience.get(userId);
 		if (pastReviews == null){
 			newUserCount++;
-			return businessAvg;
+			return defaultStar;
 		}
 		if (pastReviews.size() == 0){
 			neverReviewCount++;
-			return businessAvg;
+			return defaultStar;
 		}
-		double similaritySum = 0; // normalizer
-		double userDevRatioSum = 0;
-//		double devSum = 0;
-//		double userRateSum = 0;
 		
+		double userAvg = usersAvgScores.get(userId);
+		double weightSum = 0;
+		double similaritySum = 0;
 		for (ReviewStars oneReview : pastReviews){
 			double similarity = itemSimilarityModel.cosineSimilarity(businessId, oneReview.getBusiness_id());
-			double dev = oneReview.getStars() - reviewStatistic.businessAvg(oneReview.getBusiness_id());
-			double busdev = reviewStatistic.businessStdev(oneReview.getBusiness_id());
-			double devRatio = busdev != 0? dev / busdev : 1;
-//			double stars = oneReview.getStars();
 			
-			userDevRatioSum += similarity * devRatio;
-//			devSum += similarity * dev;
-//			userRateSum += similarity * stars;
+			weightSum += similarity * (oneReview.getStars() - userAvg);
 			similaritySum += Math.abs(similarity);
 		}
 		if (similaritySum == 0){
 			newBusinessCount++;
-			return defaultStar;
+			return userAvg;
 		}
-		double userDevRatio = userDevRatioSum / similaritySum;
-		double predictedRate = businessAvg + userDevRatio * reviewStatistic.businessStdev(businessId);
-//		devSum /= similaritySum;
-//		userRateSum /= similaritySum;
-//		double predictedRate = businessAvg + userRateSum;
-		if (Double.isNaN(predictedRate))
-			throw new RuntimeException("NaN");
-		if (predictedRate > 5)
-			return 5;
-		if (predictedRate < 1)
-			return 1;
-		return predictedRate;
+		return userAvg + weightSum / similaritySum;
 	}
 
 	public void train(){
@@ -99,6 +79,7 @@ public class ItemBasedCFModel implements Predictor{
 			throw new RuntimeException("Training data is null!");
 		
 		usersExperience = new HashMap<String, List<ReviewStars>>();
+		usersAvgScores = new HashMap<String, Double>();
 		seperateByUsers();
 		
 		trainData = null; // release memory and prevent second train
@@ -115,6 +96,16 @@ public class ItemBasedCFModel implements Predictor{
 			userReviews.add(review);
 		}
 		
+		// compute average scores users give
+		for (Map.Entry<String, List<ReviewStars>> entry : usersExperience.entrySet()){
+			String user = entry.getKey();
+			List<ReviewStars> reviews = entry.getValue();
+			double sum = 0;
+			for (ReviewStars oneReview: reviews){
+				sum += oneReview.getStars();
+			}
+			usersAvgScores.put(user, sum / reviews.size());
+		}
 	}
 	
 	void dump(){
@@ -142,10 +133,8 @@ public class ItemBasedCFModel implements Predictor{
 			
 			ItemSimilarityModel itemSimilarityModel = new ItemSimilarityModel(
 					topicVectorReader.retrieveBusinessTopicVector());
-			ReviewStatistic reviewStatistic = new ReviewStatistic(trainData);
 			
-			reviewStatistic.train();
-			ItemBasedCFModel itemBasedCFModel = new ItemBasedCFModel(trainData, itemSimilarityModel, reviewStatistic, 4);
+			ItemBasedUserScoreCFModel itemBasedCFModel = new ItemBasedUserScoreCFModel(trainData, itemSimilarityModel, 4);
 			
 			System.out.println("Training...");
 			itemBasedCFModel.train();
