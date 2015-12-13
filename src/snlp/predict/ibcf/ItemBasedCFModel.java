@@ -14,7 +14,6 @@ import snlp.data.yelp.TopicBasedBusinessSimilarDataReader;
 import snlp.data.yelp.entity.ReviewStars;
 import snlp.predict.Predictor;
 import snlp.predict.YelpPredictionEvaluator;
-import snlp.predict.baseline.StatisticPrediction;
 
 /**
  * @author Alex
@@ -68,7 +67,7 @@ public class ItemBasedCFModel implements Predictor{
 			double similarity = itemSimilarityModel.cosineSimilarity(businessId, oneReview.getBusiness_id());
 			double dev = oneReview.getStars() - reviewStatistic.businessAvg(oneReview.getBusiness_id());
 			double busdev = reviewStatistic.businessStdev(oneReview.getBusiness_id());
-			double devRatio = busdev != 0? dev / busdev : 1;
+			double devRatio = busdev != 0? dev / busdev : 0;
 //			double stars = oneReview.getStars();
 			
 			userDevRatioSum += similarity * devRatio;
@@ -129,12 +128,12 @@ public class ItemBasedCFModel implements Predictor{
 	 */
 	public static void main(String[] args) {
 		
-		ReviewReader reviewReader = new ReviewReader("./data/train-reviewstars.json");
-		ReviewReader testReader = new ReviewReader("./data/test-reviewstars.json");
+		ReviewReader reviewReader = new ReviewReader("./dirty data/train-rest-review-stars.json");
+		ReviewReader testReader = new ReviewReader("./dirty data/validate-rest-review-stars.json");
 		TopicBasedBusinessSimilarDataReader topicVectorReader = 
 				new TopicBasedBusinessSimilarDataReader(
-						"./topicDistribution/10 topic count all words/idList", 
-						"./topicDistribution/10 topic count all words/testLDA.theta", 0);
+						"./topicDistribution/50 Topic 21799 restaurants count one word 3 groups/idList", 
+						"./topicDistribution/50 Topic 21799 restaurants count one word 3 groups/positive.theta", 0);
 		
 		try {
 			System.out.println("Reading training data...");

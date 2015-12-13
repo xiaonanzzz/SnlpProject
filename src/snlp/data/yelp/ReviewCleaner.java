@@ -113,10 +113,62 @@ public class ReviewCleaner {
 		fileWriter.close();
 	}
 	
+	public void filterReviewsByBusinessIds(String[] businessIds, String outputName) throws IOException{
+		ObjectMapper objectMapper = new ObjectMapper();
+		objectMapper.configure(DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+		BufferedReader bufferReader = new BufferedReader(new FileReader(this.reviewPath));
+		FileWriter fileWriter = new FileWriter(this.outputPath + "/" + outputName);
+		
+		Set<String> idset = new HashSet<String>();
+		for (String id : businessIds){
+			idset.add(id);
+		}
+		
+		int count = 0;
+		for (String line = bufferReader.readLine(); line != null; line = bufferReader.readLine()){
+			count++;
+			if (count % 10000 == 0) System.out.printf("Processed %d reviews\n", count);
+			ReviewStars reviewStars = objectMapper.readValue(line, ReviewStars.class);
+			
+			if (idset.contains(reviewStars.getBusiness_id())){
+				fileWriter.write(line);
+				fileWriter.write("\n");
+			}
+			
+		}
+		System.out.printf("Cleaned %d reviews!\n", count);
+		bufferReader.close();
+		fileWriter.close();
+		
+	}
+	
+	
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
+		String work = "retri_stars";
+		if (work.equals("filterbid")){
+			BusinessIdFile idfile = new BusinessIdFile("./dirty data/idList");
+			ReviewCleaner reviewCleaner = new ReviewCleaner("./dirty data/yelp_academic_dataset_review.json", "./localdata");
+			try {
+				reviewCleaner.filterReviewsByBusinessIds(idfile.readBusinessIds(), "reviews_rest.json");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+			return ;
+		}
+		if (work.equals("retri_stars")){
+			ReviewCleaner reviewCleaner = new ReviewCleaner("./dirty data/reviews_rest.json", "./dirty data");
+			try {
+				reviewCleaner.retriveStars("rest-review-stars.json", -1);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			return ;
+		}
+		
 		
 		ReviewCleaner reviewCleaner = new ReviewCleaner("./dirty data/yelp_academic_dataset_review.json", "./data");
 		
