@@ -132,8 +132,8 @@ public class ItemBasedCFModel implements Predictor{
 		ReviewReader testReader = new ReviewReader("./dirty data/validate-rest-review-stars.json");
 		TopicBasedBusinessSimilarDataReader topicVectorReader = 
 				new TopicBasedBusinessSimilarDataReader(
-						"./topicDistribution/50 Topic 21799 restaurants count one word 3 groups/idList", 
-						"./topicDistribution/50 Topic 21799 restaurants count one word 3 groups/positive.theta", 0);
+						"./topicDistribution/10 topic count all words/idList", 
+						"./topicDistribution/10 topic count all words/testLDA.theta", 0);
 		
 		try {
 			System.out.println("Reading training data...");

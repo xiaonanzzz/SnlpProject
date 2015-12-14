@@ -184,7 +184,9 @@ public class ReviewStatistic {
 			for(int i = 1; i <= 5; i++){
 				dev += dist[i] * Math.pow(i - avg, 2);
 			}
-			double stdev = count > 1 ? Math.sqrt(dev / (count - 1)) : 1;
+			double stdev = count > 0 ? Math.sqrt(dev / (count)) : 1;
+			if (stdev < 0.5)
+				stdev = 0.5;
 			businessStdev.put(id, stdev);
 			
 			// total

@@ -8,9 +8,13 @@ package snlp.data.yelp.entity;
  * 
  */
 public class ReviewStars {
+	String review_id;
 	String business_id;
 	String user_id;
 	int stars;
+	
+	
+	
 	public String getBusiness_id() {
 		return business_id;
 	}
@@ -28,6 +32,12 @@ public class ReviewStars {
 	}
 	public void setStars(int stars) {
 		this.stars = stars;
+	}
+	public String getReview_id() {
+		return review_id;
+	}
+	public void setReview_id(String review_id) {
+		this.review_id = review_id;
 	}
 	
 	
