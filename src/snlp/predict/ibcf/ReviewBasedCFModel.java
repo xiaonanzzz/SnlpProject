@@ -31,6 +31,8 @@ public class ReviewBasedCFModel implements Predictor{
 	int newUserCount = 0;
 	int neverReviewCount = 0;
 	int newBusinessCount = 0;
+	double similarityTotalSum = 0;
+	int similarityTotalCount = 0;
 	
 	
 	public ReviewBasedCFModel(List<ReviewStars> trainData, ItemSimilarityModel itemSimilarityModel,
@@ -51,7 +53,6 @@ public class ReviewBasedCFModel implements Predictor{
 		if (businessToReviews == null)
 			throw new RuntimeException("businessToReviews == null");
 		
-		
 		double businessAvg = reviewStatistic.businessAvg(businessId);
 		
 		List<ReviewStars> userReviews = usersToReviews.get(userId);
@@ -68,38 +69,9 @@ public class ReviewBasedCFModel implements Predictor{
 			newBusinessCount++;
 			return businessAvg;
 		}
-		double similaritySum = 0;
-		double devRatioSum = 0;
-		for (ReviewStars oneur : userReviews){
-			
-			// For each review by the user
-			// 1, find the most similar review in the business
-			// 2, use the similarity as weight
-			
-			double similarity = 0;
-			
-			for (ReviewStars onebr : businessReviews){
-				double sim = reviewSimilarityModel.cosineSimilarity(onebr.getReview_id(), oneur.getReview_id());
-				if (sim > similarity)
-					similarity = sim;
-			}
-			// compute dev
-			double dev = oneur.getStars() - reviewStatistic.businessAvg(oneur.getBusiness_id());
-			double devRatio = dev / reviewStatistic.businessStdev(oneur.getBusiness_id());
-			if (Double.isNaN(devRatio))
-				throw new RuntimeException("Double.isNaN(devRatio)");
-			devRatioSum += similarity * devRatio;
-			similaritySum += similarity;
-		}
 		
+		double predictedRate = predictBySumupScore(userId, businessId, 1);
 		
-		if (similaritySum == 0){
-			throw new RuntimeException("similaritySum == 0");
-		}
-		
-		double finalDevRatio = devRatioSum / similaritySum;
-		double predictedRate = businessAvg + finalDevRatio * reviewStatistic.businessStdev(businessId);
-
 		if (Double.isNaN(predictedRate))
 			throw new RuntimeException("NaN");
 		if (predictedRate > 5)
@@ -108,6 +80,63 @@ public class ReviewBasedCFModel implements Predictor{
 			return 1;
 		return predictedRate;
 	}
+	
+	double predictBySumupScore(String userId, String businessId, int simpow){
+		List<ReviewStars> userReviews = usersToReviews.get(userId);
+		List<ReviewStars> businessReviews = businessToReviews.get(businessId);
+		double weightSum = 0;
+		double scoreSum = 0;
+		for (ReviewStars oneur : userReviews){
+			double similarity = 0;
+			for (ReviewStars onebr : businessReviews){
+				double sim = reviewSimilarityModel.cosineSimilarity(onebr.getReview_id(), oneur.getReview_id());
+				if (simpow > 1)
+					sim = Math.pow(sim, simpow);
+				if (sim > similarity)
+					similarity = sim;
+			}
+			double score = oneur.getStars();
+			scoreSum += similarity * score;
+			weightSum += similarity;
+			similarityTotalSum += similarity;
+			similarityTotalCount++;
+		}
+		
+		if (weightSum == 0){
+			throw new RuntimeException("weightSum == 0");
+		}
+		
+		return scoreSum / weightSum;
+	}
+	
+	double predictBySumupDeviation(String userId, String businessId, int simpow){
+		List<ReviewStars> userReviews = usersToReviews.get(userId);
+		List<ReviewStars> businessReviews = businessToReviews.get(businessId);
+		double weightSum = 0;
+		double scoreSum = 0;
+		for (ReviewStars oneur : userReviews){
+			double similarity = 0;
+			for (ReviewStars onebr : businessReviews){
+				double sim = reviewSimilarityModel.cosineSimilarity(onebr.getReview_id(), oneur.getReview_id());
+				if (simpow > 1)
+					sim = Math.pow(sim, simpow);
+				if (sim > similarity)
+					similarity = sim;
+			}
+			double score = oneur.getStars() - reviewStatistic.businessAvg(oneur.getBusiness_id());
+			scoreSum += similarity * score;
+			weightSum += similarity;
+			similarityTotalSum += similarity;
+			similarityTotalCount++;
+		}
+		
+		if (weightSum == 0){
+			throw new RuntimeException("weightSum == 0");
+		}
+		double normalScore = scoreSum / weightSum;
+		return reviewStatistic.businessAvg(businessId) + normalScore;
+	}
+	
 
 	public void train(){
 		if (trainData == null)
@@ -150,6 +179,7 @@ public class ReviewBasedCFModel implements Predictor{
 		System.out.printf("newUserCount = %d\n", newUserCount);
 		System.out.printf("neverReviewCount = %d\n", neverReviewCount);
 		System.out.printf("newBusinessCount = %d\n", newBusinessCount);
+		System.out.println("similarity average = " + (similarityTotalSum / similarityTotalCount));
 	}
 	
 	/**
@@ -159,7 +189,7 @@ public class ReviewBasedCFModel implements Predictor{
 		
 		ReviewReader reviewReader = new ReviewReader("./dirty data/train-rest-review-stars.json");
 		ReviewReader testReader = new ReviewReader("./dirty data/validate-rest-review-stars.json");
-		ReviewTopicFile reviewTopicFile = new ReviewTopicFile("./dirty data/reviews.topicdist", 0);
+		ReviewTopicFile reviewTopicFile = new ReviewTopicFile("./dirty data/reviews2-700.theta", 0);
 		
 		try {
 			System.out.println("Reading training data...");
@@ -183,6 +213,7 @@ public class ReviewBasedCFModel implements Predictor{
 			double mae = yelpPredictionEvaluator.copmuteMAE(itemBasedCFModel);
 			
 			itemBasedCFModel.dump();
+			yelpPredictionEvaluator.dump();
 			System.out.printf("MAE=%f\n", mae);
 			
 			

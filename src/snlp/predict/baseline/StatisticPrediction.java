@@ -72,8 +72,9 @@ public class StatisticPrediction implements Predictor{
 			YelpPredictionEvaluator yelpPredictionEvaluator = new YelpPredictionEvaluator(testReader.readReviewStars(-1));
 			
 			System.out.println("Computing MAE...");
-			double mae = yelpPredictionEvaluator.copmuteMAE(statisticPrediction);
 			
+			double mae = yelpPredictionEvaluator.copmuteMAE(statisticPrediction);
+			yelpPredictionEvaluator.dump();
 			System.out.printf("MAE=%f\n", mae);
 			
 		} catch (IOException e) {

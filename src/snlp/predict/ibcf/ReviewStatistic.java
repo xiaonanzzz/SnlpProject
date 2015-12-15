@@ -200,5 +200,13 @@ public class ReviewStatistic {
 		System.out.println("Review total average stdev: " + stdevAvg);
 		
 	}
+
+	public double getTotalAvg() {
+		return totalAvg;
+	}
+
+	public double getStdevAvg() {
+		return stdevAvg;
+	}
 	
 }
