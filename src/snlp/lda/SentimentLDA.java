@@ -1,5 +1,3 @@
-
-
 package snlp.lda;
 
 import java.io.BufferedReader;
@@ -38,31 +36,39 @@ import org.apache.commons.io.filefilter.AndFileFilter;
  * @modifier: Qiming Chen
  */
 
-public class GibbsSamplingLDA
+public class SentimentLDA
 {
 //	public double alpha; // Hyper-parameter alpha
 //	public double beta; // Hyper-parameter alpha
 	
 	public double[] alpha; // Hyper-parameter alpha- doc topic
 	public double[][] beta; // Hyper-parameter beta- topic word
-
+	public double[] gamma; //Hyper-parameter for sentiment
+	
 	public int numDocuments; // Number of documents in the corpus
 	public int numTopics; // Number of topics
 	public int numIterations; // Number of Gibbs sampling iterations
 	public int numTopWords; // Number of most probable words for each topic
+	
+	public int numSentiment;
 
 	public double alphaSum; // alpha * numTopics
 	public double[] betaSum; // beta * vocabularySize
-
+	public double gammaSum;
+	
 	public List<List<Integer>> corpus; // Word ID-based corpus
 	public List<List<Integer>> topicAssignments; // Topics assignments for words in the corpus
+	//public Vector<Vector<Integer>> sentimentAssignment; // a sentiment relate to doc and top
+	public int[][] sentimentAssignment;
 	
 	public int numWordsInCorpus; // Number of words in the corpus
 
 	public HashMap<String, Integer> word2IdVocabulary; // Vocabulary to get ID given a word
 	public HashMap<Integer, String> id2WordVocabulary; // Vocabulary to get word given an ID
 	public int vocabularySize; // The number of word types in the corpus
-
+	
+	public List<List<Integer>> sentimentLabel;
+	
 	public HashMap<String, String> topic2word;
 	public HashMap<String, String> word2topic;
 	
@@ -73,9 +79,15 @@ public class GibbsSamplingLDA
 	public int[] sumDocTopicCount;
 	// numTopics * vocabularySize matrix
 	// Given a topic: number of times a word type assigned to the topic
-	public int[][] topicWordCount;
-	// Total number of words assigned to a topic
-	public int[] sumTopicWordCount;
+//	public int[][] topicWordCount;
+//	// Total number of words assigned to a topic
+//	public int[] sumTopicWordCount;
+	
+	public int[][][] docTopicSentimentCount;
+	public int[][] sumDocTopicSentimentCount;
+	
+	public int[][][] topicSentimentWordCount;
+	public int[][] sumTopicSentimentWordCount;
 
 	// Double array used to sample a topic
 	public double[] multiPros;
@@ -90,38 +102,41 @@ public class GibbsSamplingLDA
 	public String tAssignsFilePath = "";
 	public int savestep = 0;
 
-	public GibbsSamplingLDA(Vector<String> pathToCorpus, String pathToVocab, int inNumTopics,
-			double inAlpha, double inBeta, int inNumIterations, int inTopWords,
+	public SentimentLDA(Vector<String> pathToCorpus, String pathToVocab, int inNumTopics,
+			double inAlpha, double inBeta, double inGamma,int inNumIterations, int inTopWords,int inNumSentiment, Vector<String> inPathSentiment,
 			String inExpName, String pathToOutput)
 		throws Exception
 	{
-		this(pathToCorpus, pathToVocab,inNumTopics, inAlpha, inBeta, inNumIterations,
-			inTopWords, inExpName,pathToOutput, "", 0);
+		this(pathToCorpus, pathToVocab,inNumTopics, inAlpha, inBeta, inGamma, inNumIterations,
+			inTopWords,inNumSentiment, inPathSentiment, inExpName,pathToOutput, "", 0);
 	}
 
-	public GibbsSamplingLDA(Vector<String> pathToCorpus, String pathToVocab, int inNumTopics,
-			double inAlpha, double inBeta, int inNumIterations, int inTopWords,
+	public SentimentLDA(Vector<String> pathToCorpus, String pathToVocab, int inNumTopics,
+			double inAlpha, double inBeta, double inGamma, int inNumIterations, int inTopWords,int inNumSentiment,Vector<String> inPathSentiment,
 			String inExpName, String pathToOutput, int inSaveStep)
 		throws Exception
 	{
-		this(pathToCorpus, pathToVocab,inNumTopics, inAlpha, inBeta, inNumIterations,
-			inTopWords, inExpName,pathToOutput, "", inSaveStep);
+		this(pathToCorpus, pathToVocab,inNumTopics, inAlpha, inBeta, inGamma,  inNumIterations,
+			inTopWords,inNumSentiment, inPathSentiment, inExpName, pathToOutput, "", inSaveStep);
 	}
 	
-	public GibbsSamplingLDA(Vector<String> pathToCorpus, String pathToVocab, int inNumTopics,
-		double inAlpha, double inBeta, int inNumIterations, int inTopWords,
+	public SentimentLDA(Vector<String> pathToCorpus, String pathToVocab, int inNumTopics,
+		double inAlpha, double inBeta, double inGamma, int inNumIterations, int inTopWords, int inNumSentiment,Vector<String> inPathSentiment,
 		String inExpName, String pathToOutput, String pathToTAfile, int inSaveStep)
 		throws Exception
 	{
 
 		
-		//numDocument=pathToCorpus.size();
-		//numDocuments=pathToCorpus.size();
-		numDocuments=10;
+		
+		numDocuments=pathToCorpus.size();
+		numIterations = inNumIterations;
+		
+//		numDocuments=10;
+//		numIterations = 100;
 		
 		numTopics = inNumTopics;
-		numIterations = inNumIterations;
 		numTopWords = inTopWords;
+		numSentiment=inNumSentiment;
 		savestep = inSaveStep;
 		expName = inExpName;
 		orgExpName = expName;
@@ -193,19 +208,46 @@ public class GibbsSamplingLDA
 		}
 		
 		//write 
-		BufferedWriter writer = new BufferedWriter(new FileWriter(folderPath + "corpus."+ expName));
-		for (int i=0;i<numDocuments;i++) {
-			for(int j=0;j<corpus.get(i).size();j++){
-				writer.write(corpus.get(i).get(j)+" ");
-			}
-			writer.write("\n");
-		}
-		writer.close();
+//		BufferedWriter writer = new BufferedWriter(new FileWriter(folderPath + "corpus."+ expName));
+//		for (int i=0;i<numDocuments;i++) {
+//			for(int j=0;j<corpus.get(i).size();j++){
+//				writer.write(corpus.get(i).get(j)+" ");
+//			}
+//			writer.write("\n");
+//		}
+//		writer.close();
 		
+		//////////////////////////////////////////////////////////////////////////
+		//get sentiment label
+		sentimentLabel=new ArrayList<List<Integer>>();
+		try {
+			for (int i = 0; i < numSentiment; i++) {
+				System.out.println(i);
+				br = new BufferedReader(new FileReader(inPathSentiment.get(i)));
+				List<Integer> sentimentWords = new ArrayList<Integer>();
+				
+				for (String word; (word = br.readLine()) != null;) {
+					word=word.trim();
+					if (word.length()!=0) {
+						if (word2IdVocabulary.containsKey(word)) {
+							sentimentWords.add(word2IdVocabulary.get(word));
+						}
+					}
+				}
+				
+				sentimentLabel.add(sentimentWords);
+			}
+			
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		//////////////////////////////////////////////////////////////////////////
 		//get in hyper parameters
 		
 		alpha = new double[numDocuments];
-		alphaSum=0;
+		alphaSum=0.0;
 		for (int i = 0; i < alpha.length; i++) {
 			alpha[i]=inAlpha;
 			alphaSum+=alpha[i];
@@ -220,10 +262,22 @@ public class GibbsSamplingLDA
 			}
 		}
 		
+		gamma=new double[numSentiment];
+		gammaSum=0.0;
+		for (int i = 0; i < gamma.length; i++) {
+			gamma[i]=inGamma;
+			gammaSum+=gamma[i];
+		}
+		
 		docTopicCount = new int[numDocuments][numTopics];
-		topicWordCount = new int[numTopics][vocabularySize];
+		//topicWordCount = new int[numTopics][vocabularySize];
+		docTopicSentimentCount = new int[numDocuments][numTopics][numSentiment];
+		topicSentimentWordCount = new int[numTopics][numSentiment][vocabularySize];
+				
 		sumDocTopicCount = new int[numDocuments];
-		sumTopicWordCount = new int[numTopics];
+		//sumTopicWordCount = new int[numTopics];
+		sumDocTopicSentimentCount = new int[numDocuments][numTopics];
+		sumTopicSentimentWordCount = new int[numTopics][numSentiment];
 
 		multiPros = new double[numTopics];
 		for (int i = 0; i < numTopics; i++) {
@@ -256,20 +310,41 @@ public class GibbsSamplingLDA
 		System.out.println("Randomly initializing topic assignments ...");
 
 		topicAssignments = new ArrayList<List<Integer>>();
-
+		sentimentAssignment = new int[numDocuments][numTopics];
+		
 		for (int i = 0; i < numDocuments; i++) {
 			List<Integer> topics = new ArrayList<Integer>();
 			int docSize = corpus.get(i).size();
 			for (int j = 0; j < docSize; j++) {
-				int topic = nextDiscrete(multiPros); // Sample a topic
+				int topic = nextDiscrete(multiPros); // Sample a topic from theta_doc
+				//int sentiment = nextDiscrete(gamma); // Sample a sentiment
+				int sentiment=nextDiscrete(gamma);
+				
+				//consider the label
+				for (int k = 0; k < numSentiment; k++) {
+					if (sentimentLabel.get(k).contains(corpus.get(i).get(j))) {
+						//System.out.println(id2WordVocabulary.get(corpus.get(i).get(j)));
+						sentiment=k;
+						break;
+					}
+				}
+				
 				// Increase counts
 				docTopicCount[i][topic] += 1;
-				topicWordCount[topic][corpus.get(i).get(j)] += 1;
+				//topicWordCount[topic][corpus.get(i).get(j)] += 1;
+				docTopicSentimentCount[i][topic][sentiment] +=1;
+				topicSentimentWordCount[topic][sentiment][corpus.get(i).get(j)] +=1;
+				
 				sumDocTopicCount[i] += 1;
-				sumTopicWordCount[topic] += 1;
-
+				//sumTopicWordCount[topic] += 1;
+				sumDocTopicSentimentCount[i][topic]+=1;
+				sumTopicSentimentWordCount[topic][sentiment] +=1;
+				
+				sentimentAssignment[i][topic]=sentiment;
+				
 				topics.add(topic);
 			}
+
 			topicAssignments.add(topics);
 		}
 	}
@@ -294,12 +369,23 @@ public class GibbsSamplingLDA
 				List<Integer> topics = new ArrayList<Integer>();
 				for (int j = 0; j < strTopics.length; j++) {
 					int topic = new Integer(strTopics[j]);
+					int sentiment=1;
 					// Increase counts
+//					docTopicCount[docID][topic] += 1;
+//					//topicWordCount[topic][corpus.get(docID).get(j)] += 1;
+//					sumDocTopicCount[docID] += 1;
+//					//sumTopicWordCount[topic] += 1;
+					
 					docTopicCount[docID][topic] += 1;
-					topicWordCount[topic][corpus.get(docID).get(j)] += 1;
+					//topicWordCount[topic][corpus.get(i).get(j)] += 1;
+					docTopicSentimentCount[docID][topic][sentiment] +=1;
+					topicSentimentWordCount[topic][sentiment][j] +=1;
+					
 					sumDocTopicCount[docID] += 1;
-					sumTopicWordCount[topic] += 1;
-
+					//sumTopicWordCount[topic] += 1;
+					sumDocTopicSentimentCount[docID][topic]+=1;
+					sumTopicSentimentWordCount[topic][sentiment] +=1;
+					
 					topics.add(topic);
 					numWords++;
 				}
@@ -354,38 +440,60 @@ public class GibbsSamplingLDA
 			for (int wIndex = 0; wIndex < docSize; wIndex++) {
 				// Get current word and its topic
 				int topic = topicAssignments.get(dIndex).get(wIndex);
+				int sentiment=sentimentAssignment[dIndex][topic];
 				int word = corpus.get(dIndex).get(wIndex);
 
 				// Decrease counts
 				docTopicCount[dIndex][topic] -= 1;
 				sumDocTopicCount[dIndex] -= 1;
-				topicWordCount[topic][word] -= 1;
-				sumTopicWordCount[topic] -= 1;
+				//topicWordCount[topic][word] -= 1;
+				//sumTopicWordCount[topic] -= 1;
+				
+				docTopicSentimentCount[dIndex][topic][sentiment] -=1;
+				sumDocTopicSentimentCount[dIndex][topic] -=1;
+				
+				topicSentimentWordCount[topic][sentiment][word] -=1;
+				sumTopicSentimentWordCount[topic][sentiment] -=1;
+				
+				//System.out.println(docTopicSentimentCount[dIndex][topic][sentiment]);
+				//System.out.println(sumDocTopicSentimentCount[dIndex][topic]);
 				
 				double Vbeta = vocabularySize * beta[topic][word];
-				double Kalpha = numTopics * alpha[topic];
+				double Kalpha = numTopics * alpha[dIndex];
 				
 				// Sample a topic
 				for (int tIndex = 0; tIndex < numTopics; tIndex++) {
-					multiPros[tIndex] =  (topicWordCount[tIndex][word] 
-							+ beta[tIndex][word])
-							/
-							(sumTopicWordCount[tIndex]+Vbeta) *
-							(docTopicCount[dIndex][tIndex] 
-									+ alpha[dIndex]) /
-									(sumDocTopicCount[dIndex]+
-											Kalpha);
+					multiPros[tIndex] =  
+					(docTopicCount[dIndex][tIndex] + alpha[dIndex]) /(sumDocTopicCount[dIndex]+Kalpha) *
+					(docTopicSentimentCount[dIndex][tIndex][sentiment] + gamma[sentiment]) / ( sumDocTopicSentimentCount[dIndex][tIndex] + gammaSum) *
+					(topicSentimentWordCount[tIndex][sentiment][word] + beta[tIndex][word])/ (sumTopicSentimentWordCount[tIndex][sentiment]+Vbeta);
 				}
 				
 				topic = nextDiscrete(multiPros);
-
+				
+				//given topic sample a sentiment
+//				double[] multisentiment=new double[numSentiment];
+//				for (int sIndex = 0; sIndex < numSentiment; sIndex++) {
+//					multisentiment[sIndex] =  
+//					(docTopicCount[dIndex][topic] + alpha[dIndex]) /(sumDocTopicCount[dIndex]+Kalpha) *
+//					(docTopicSentimentCount[dIndex][topic][sIndex] + gamma[sIndex]) / ( sumDocTopicSentimentCount[dIndex][topic] + gammaSum) *
+//					(topicSentimentWordCount[topic][sIndex][word] + beta[topic][word])/ (sumTopicSentimentWordCount[topic][sIndex]+Vbeta);
+//				}
+//				sentiment=nextDiscrete(multisentiment);
+				
 				// Increase counts
 				docTopicCount[dIndex][topic] += 1;
 				sumDocTopicCount[dIndex] += 1;
-				topicWordCount[topic][word] += 1;
-				sumTopicWordCount[topic] += 1;
-
+				//topicWordCount[topic][word] += 1;
+				//sumTopicWordCount[topic] += 1;
+				docTopicSentimentCount[dIndex][topic][sentiment] +=1;
+				sumDocTopicSentimentCount[dIndex][topic] +=1;
+				
+				topicSentimentWordCount[topic][sentiment][word] +=1;
+				sumTopicSentimentWordCount[topic][sentiment] +=1;
+				
 				// Update topic assignments
+				sentimentAssignment[dIndex][topic]=sentiment;
 				topicAssignments.get(dIndex).set(wIndex, topic);
 			}
 		}
@@ -407,25 +515,34 @@ public class GibbsSamplingLDA
         }
         return probs.length - 1;
     }
-
+	
+	
+	
 	 public double computePerplexity()
 	 {
 		 double logliCorpus = 0.0;
 		 for (int dIndex = 0; dIndex < numDocuments; dIndex++) {
-		 int docSize = corpus.get(dIndex).size();
-		 double logliDoc = 0.0;
-		 for (int wIndex = 0; wIndex < docSize; wIndex++) {
-		 int word = corpus.get(dIndex).get(wIndex);
-		 double likeWord = 0.0;
-		 for (int tIndex = 0; tIndex < numTopics; tIndex++) {
-		 likeWord += ((docTopicCount[dIndex][tIndex] + alpha[dIndex]) /
-		 (sumDocTopicCount[dIndex] + alphaSum))
-		 * ((topicWordCount[tIndex][word] + beta[tIndex][word]) / (sumTopicWordCount[tIndex] +
-		 betaSum[tIndex]));
-		 }
-		 logliDoc += Math.log(likeWord);
-		 }
-		 logliCorpus += logliDoc;
+			 int docSize = corpus.get(dIndex).size();
+			 double logliDoc = 0.0;
+			 for (int wIndex = 0; wIndex < docSize; wIndex++) {
+				 int word = corpus.get(dIndex).get(wIndex);
+				 double likeWord = 0.0;
+				 for (int tIndex = 0; tIndex < numTopics; tIndex++) {
+					 int sentiment= sentimentAssignment[dIndex][tIndex];
+			//		 likeWord += ((docTopicCount[dIndex][tIndex] + alpha[dIndex]) /
+			//		 (sumDocTopicCount[dIndex] + alphaSum))
+			//		 * ((topicWordCount[tIndex][word] + beta[tIndex][word]) / (sumTopicWordCount[tIndex] +
+			//		 betaSum[tIndex]));
+					 likeWord=  
+								(docTopicCount[dIndex][tIndex] + alpha[dIndex]) /(sumDocTopicCount[dIndex]+alphaSum) *
+								(docTopicSentimentCount[dIndex][tIndex][sentiment] + gamma[sentiment]) / ( sumDocTopicSentimentCount[dIndex][tIndex] + gammaSum) *
+								(topicSentimentWordCount[tIndex][sentiment][word] + beta[tIndex][word])/ (sumTopicSentimentWordCount[tIndex][sentiment]+betaSum[tIndex]);
+							
+					 
+				 }
+				 logliDoc += Math.log(likeWord);
+			 }
+			 logliCorpus += logliDoc;
 		 }
 		 double perplexity = Math.exp(-1.0 * logliCorpus / numWordsInCorpus);
 		 if (perplexity < 0)
@@ -488,7 +605,7 @@ public class GibbsSamplingLDA
 		for (int dIndex = 0; dIndex < numDocuments; dIndex++) {
 			int docSize = corpus.get(dIndex).size();
 			for (int wIndex = 0; wIndex < docSize; wIndex++) {
-				writer.write(topicAssignments.get(dIndex).get(wIndex) + " ");
+				writer.write("["+topicAssignments.get(dIndex).get(wIndex) + ","+sentimentAssignment[dIndex][topicAssignments.get(dIndex).get(wIndex)]+"] ");
 			}
 			writer.write("\n");
 		}
@@ -502,41 +619,92 @@ public class GibbsSamplingLDA
 				+ "numTopWords."+ expName));
 
 			for (int tIndex = 0; tIndex < numTopics; tIndex++) {
-				writer.write("Topic" + new Integer(tIndex) + ":");
+				//writer.write("Topic" + new Integer(tIndex) + " ");
 
-				Map<Integer, Integer> wordCount = new TreeMap<Integer, Integer>();
-				for (int wIndex = 0; wIndex < vocabularySize; wIndex++) {
-					wordCount.put(wIndex, topicWordCount[tIndex][wIndex]);
+				////
+				for (int sentiment = 0; sentiment < numSentiment; sentiment++) {
+					writer.write("Topic" + new Integer(tIndex) + " "+"Sentiment" + new Integer(sentiment) + ":");
+					
+					Map<Integer, Integer> wordCount = new TreeMap<Integer, Integer>();
+					for (int wIndex = 0; wIndex < vocabularySize; wIndex++) {
+						wordCount.put(wIndex, topicSentimentWordCount[tIndex][sentiment][wIndex]);
+
+					}
+					
+					//wordCount = FuncUtils.sortByValueDescending(wordCount);
+			        List<Map.Entry<Integer, Integer>> list = new LinkedList<Map.Entry<Integer, Integer>>(wordCount.entrySet());
+			        Collections.sort(list, new Comparator<Map.Entry<Integer, Integer>>()
+			        {
+			            public int compare(Map.Entry<Integer, Integer> o1, Map.Entry<Integer, Integer> o2)
+			            {
+			                int compare = (o1.getValue()).compareTo(o2.getValue());
+			                return -compare;
+			            }
+			        });
+
+			        Map<Integer, Integer> result = new LinkedHashMap<Integer, Integer>();
+			        for (Map.Entry<Integer, Integer> entry : list) {
+			            result.put(entry.getKey(), entry.getValue());
+			        }
+			        wordCount= result;
+					
+					Set<Integer> mostLikelyWords = wordCount.keySet();
+					int count = 0;
+					for (Integer index : mostLikelyWords) {
+						if (count < numTopWords) {
+							writer.write(" " + id2WordVocabulary.get(index));
+							count += 1;
+						}
+						else {
+							writer.write("\n\n");
+							break;
+						}
+					}
 				}
-				//wordCount = FuncUtils.sortByValueDescending(wordCount);
-		        List<Map.Entry<Integer, Integer>> list = new LinkedList<Map.Entry<Integer, Integer>>(wordCount.entrySet());
-		        Collections.sort(list, new Comparator<Map.Entry<Integer, Integer>>()
-		        {
-		            public int compare(Map.Entry<Integer, Integer> o1, Map.Entry<Integer, Integer> o2)
-		            {
-		                int compare = (o1.getValue()).compareTo(o2.getValue());
-		                return -compare;
-		            }
-		        });
-
-		        Map<Integer, Integer> result = new LinkedHashMap<Integer, Integer>();
-		        for (Map.Entry<Integer, Integer> entry : list) {
-		            result.put(entry.getKey(), entry.getValue());
-		        }
-		        wordCount= result;
 				
-				Set<Integer> mostLikelyWords = wordCount.keySet();
-				int count = 0;
-				for (Integer index : mostLikelyWords) {
-					if (count < numTopWords) {
-						writer.write(" " + id2WordVocabulary.get(index));
-						count += 1;
-					}
-					else {
-						writer.write("\n\n");
-						break;
-					}
-				}
+//				Map<Integer, Integer> wordCount = new TreeMap<Integer, Integer>();
+//				for (int wIndex = 0; wIndex < vocabularySize; wIndex++) {
+//					for (int label = 0; label < numSentiment; label++) {
+//						if (label==0) {
+//							wordCount.put(wIndex, topicSentimentWordCount[tIndex][label][wIndex]);
+//						}
+//						else{
+//							wordCount.put(wIndex, wordCount.get(wIndex)+topicSentimentWordCount[tIndex][label][wIndex]);
+//						}
+//					}
+//					
+//				}
+//				
+//				//wordCount = FuncUtils.sortByValueDescending(wordCount);
+//		        List<Map.Entry<Integer, Integer>> list = new LinkedList<Map.Entry<Integer, Integer>>(wordCount.entrySet());
+//		        Collections.sort(list, new Comparator<Map.Entry<Integer, Integer>>()
+//		        {
+//		            public int compare(Map.Entry<Integer, Integer> o1, Map.Entry<Integer, Integer> o2)
+//		            {
+//		                int compare = (o1.getValue()).compareTo(o2.getValue());
+//		                return -compare;
+//		            }
+//		        });
+//
+//		        Map<Integer, Integer> result = new LinkedHashMap<Integer, Integer>();
+//		        for (Map.Entry<Integer, Integer> entry : list) {
+//		            result.put(entry.getKey(), entry.getValue());
+//		        }
+//		        wordCount= result;
+//				
+//				Set<Integer> mostLikelyWords = wordCount.keySet();
+//				int count = 0;
+//				for (Integer index : mostLikelyWords) {
+//					if (count < numTopWords) {
+//						writer.write(" " + id2WordVocabulary.get(index));
+//						count += 1;
+//					}
+//					else {
+//						writer.write("\n\n");
+//						break;
+//					}
+//				}
+				////
 			}
 			writer.close();
 		}
@@ -547,11 +715,16 @@ public class GibbsSamplingLDA
 		BufferedWriter writer = new BufferedWriter(new FileWriter(folderPath
 			+ expName + ".phi"));
 		for (int i = 0; i < numTopics; i++) {
-			for (int j = 0; j < vocabularySize; j++) {
-				double pro = (topicWordCount[i][j] + beta[i][j])
-					/ (sumTopicWordCount[i] + betaSum[i]);
-				writer.write(pro + " ");
+			for (int j = 0; j < numSentiment; j++) {
+				for (int k = 0; k < vocabularySize; k++) {
+//					double pro = (topicWordCount[i][j] + beta[i][j])
+//						/ (sumTopicWordCount[i] + betaSum[i]);
+					double pro=(topicSentimentWordCount[i][j][k] + beta[i][k])/ (sumTopicSentimentWordCount[i][j]+betaSum[i]);
+					
+					writer.write(pro + " ");
+				}
 			}
+			
 			writer.write("\n");
 		}
 		writer.close();
@@ -564,33 +737,73 @@ public class GibbsSamplingLDA
 			+ expName + ".WTcount"));
 		for (int i = 0; i < numTopics; i++) {
 			for (int j = 0; j < vocabularySize; j++) {
-				writer.write(topicWordCount[i][j] + " ");
+				//writer.write(topicWordCount[i][j] + " ");
 			}
 			writer.write("\n");
 		}
 		writer.close();
 
 	}
+	
+	public void writeDocTopicSentimentPros()
+			throws IOException
+		{
+			BufferedWriter writer = new BufferedWriter(new FileWriter(folderPath
+				+ expName + ".pi"));
+			for (int i = 0; i < numDocuments; i++) {
+				for (int j = 0; j < numTopics; j++) {
+					double pro = (docTopicCount[i][j] + alpha[i])
+						/ (sumDocTopicCount[i] + alphaSum);
+					writer.write(pro + " ");
+				}
+				writer.write("\n");
+			}
+			writer.close();
+		}
 
 	public void writeDocTopicPros()
 		throws IOException
 	{
 		BufferedWriter writer = new BufferedWriter(new FileWriter(folderPath
 			+ expName + ".theta"));
-	
-		for (int i = 0; i < numDocuments; i++) {
-			String review_id=corpusPath.get(i).substring(45, corpusPath.get(i).length()-4);
-			writer.write(review_id);
-			for (int j = 0; j < numTopics; j++) {
-				double pro = (docTopicCount[i][j] + alpha[i])
-					/ (sumDocTopicCount[i] + alphaSum);
-				writer.write(pro + " ");
+		for (int dIndex = 0; dIndex < numDocuments; dIndex++) {
+			for (int tIndex = 0; tIndex < numTopics; tIndex++) {
+				for (int sentiment = 0; sentiment < numSentiment; sentiment++) {
+					//double pro = (docTopicCount[i][j] + alpha[i]) / (sumDocTopicCount[i] + alphaSum);
+					double pro=(docTopicCount[dIndex][tIndex] + alpha[dIndex]) /(sumDocTopicCount[dIndex]+alphaSum) *
+							(docTopicSentimentCount[dIndex][tIndex][sentiment] + gamma[sentiment]) / ( sumDocTopicSentimentCount[dIndex][tIndex] + gammaSum);
+					//System.out.println((docTopicCount[dIndex][tIndex] + alpha[dIndex]) /(sumDocTopicCount[dIndex]+alphaSum));
+					//System.out.println(docTopicSentimentCount[dIndex][tIndex][sentiment]);
+					//System.out.println(sumDocTopicSentimentCount[dIndex][tIndex]);
+					//System.out.println((docTopicSentimentCount[dIndex][tIndex][sentiment] + gamma[sentiment]) / ( sumDocTopicSentimentCount[dIndex][tIndex] + gammaSum));
+					writer.write(pro + " ");
+				}
+				
 			}
 			writer.write("\n");
 		}
 		writer.close();
 	}
-
+	
+	
+	public void writeDocTopicPros2()
+		throws IOException
+	{
+		BufferedWriter writer = new BufferedWriter(new FileWriter(folderPath
+			+ expName + ".theta2"));
+		for (int i = 0; i < numDocuments; i++) {
+			for (int j = 0; j < numTopics; j++) {
+				for (int k = 0; k < numSentiment; k++) {
+					double pro = (docTopicCount[i][j] + alpha[i]) / (sumDocTopicCount[i] + alphaSum) *
+							(docTopicSentimentCount[i][j][k] + gamma[k]) / ( sumDocTopicSentimentCount[i][j] + gammaSum);
+					writer.write(pro + " ");
+				}			
+			}
+			writer.write("\n");
+		}
+		writer.close();
+	}
+	
 	public void writeDocTopicCount()
 		throws IOException
 	{
@@ -610,6 +823,7 @@ public class GibbsSamplingLDA
 	{
 		writeTopTopicalWords();
 		writeDocTopicPros();
+		writeDocTopicPros2();
 		writeTopicAssignments();
 		writeTopicWordPros();
 	}
@@ -632,8 +846,8 @@ public class GibbsSamplingLDA
 		
 		Vector<String> fileName = new Vector<String>();
 		File folder1 = new File(filePath);
-		String[] list1 = folder1.list();//990626
-		for (int i = 0; i < 1000; i++) {
+		String[] list1 = folder1.list();
+		for (int i = 0; i < list1.length; i++) {
 			if (i>0) {
 				String temp=list1[i].substring(6, list1[i].length()-4);
 				if (restaurant_id.contains(temp)) {
@@ -677,22 +891,26 @@ public class GibbsSamplingLDA
 		throws Exception
 	{
 		Vector<String> fileName;
-		fileName=getFileName("/Users/QimingChen/Desktop/Yelp_Review2");
+		fileName=getFileName("/Users/QimingChen/Desktop/Yelp_Review");
 		System.out.println(fileName.size());
 		String pathToVocab="/Users/QimingChen/Desktop/vocabulary28482";
 		String pathToOutput="/Users/QimingChen/Desktop/output";
 		
-		int numOfTopic=100;
+		Vector<String> sentiment = new Vector<String>(); //from low to high
+		sentiment.add("/Users/QimingChen/Desktop/label/negative-words.txt");
+		sentiment.add("/Users/QimingChen/Desktop/label/positive-words.txt");
+		
+		int numOfTopic=50;
 		int numOfWord=100;
 		int numOfIter=1000;
+		int numOfSentiment=2;
 		double alpha=0.01;
 		double beta=0.33; // 1/numoftopic
-		GibbsSamplingLDA lda=new GibbsSamplingLDA(fileName,pathToVocab, numOfTopic, alpha, beta, numOfIter, numOfWord, "testtest",pathToOutput,20); //save every 20 iteration
+		double gamma=0.5;
+		SentimentLDA lda=new SentimentLDA(fileName,pathToVocab, numOfTopic, alpha, beta, gamma, numOfIter, numOfWord, numOfSentiment,sentiment,"sentiment",pathToOutput,20); //save every 20 iteration
 
 		//GibbsSamplingLDA lda = new GibbsSamplingLDA("/Users/QimingChen/Desktop/Statistical NLP/project/jLDADMM_v1.0/src/models/test/corpus.txt", 7, 0.1,
 		//	0.01, 2000, 20, "testLDA");
 		lda.inference();
 	}
 }
-
-

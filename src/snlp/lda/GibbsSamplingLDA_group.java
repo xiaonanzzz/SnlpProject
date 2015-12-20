@@ -1,5 +1,3 @@
-
-
 package snlp.lda;
 
 import java.io.BufferedReader;
@@ -21,7 +19,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.Vector;
 
-import org.apache.commons.io.filefilter.AndFileFilter;
 
 /**
  * jLDADMM: A Java package for the LDA and DMM topic models
@@ -38,7 +35,7 @@ import org.apache.commons.io.filefilter.AndFileFilter;
  * @modifier: Qiming Chen
  */
 
-public class GibbsSamplingLDA
+public class GibbsSamplingLDA_group
 {
 //	public double alpha; // Hyper-parameter alpha
 //	public double beta; // Hyper-parameter alpha
@@ -90,7 +87,9 @@ public class GibbsSamplingLDA
 	public String tAssignsFilePath = "";
 	public int savestep = 0;
 
-	public GibbsSamplingLDA(Vector<String> pathToCorpus, String pathToVocab, int inNumTopics,
+	public HashMap<Integer, Vector<Integer>> stars;
+	
+	public GibbsSamplingLDA_group(Vector<String> pathToCorpus, String pathToVocab, int inNumTopics,
 			double inAlpha, double inBeta, int inNumIterations, int inTopWords,
 			String inExpName, String pathToOutput)
 		throws Exception
@@ -99,7 +98,7 @@ public class GibbsSamplingLDA
 			inTopWords, inExpName,pathToOutput, "", 0);
 	}
 
-	public GibbsSamplingLDA(Vector<String> pathToCorpus, String pathToVocab, int inNumTopics,
+	public GibbsSamplingLDA_group(Vector<String> pathToCorpus, String pathToVocab, int inNumTopics,
 			double inAlpha, double inBeta, int inNumIterations, int inTopWords,
 			String inExpName, String pathToOutput, int inSaveStep)
 		throws Exception
@@ -108,7 +107,7 @@ public class GibbsSamplingLDA
 			inTopWords, inExpName,pathToOutput, "", inSaveStep);
 	}
 	
-	public GibbsSamplingLDA(Vector<String> pathToCorpus, String pathToVocab, int inNumTopics,
+	public GibbsSamplingLDA_group(Vector<String> pathToCorpus, String pathToVocab, int inNumTopics,
 		double inAlpha, double inBeta, int inNumIterations, int inTopWords,
 		String inExpName, String pathToOutput, String pathToTAfile, int inSaveStep)
 		throws Exception
@@ -116,8 +115,7 @@ public class GibbsSamplingLDA
 
 		
 		//numDocument=pathToCorpus.size();
-		//numDocuments=pathToCorpus.size();
-		numDocuments=10;
+		numDocuments=pathToCorpus.size();
 		
 		numTopics = inNumTopics;
 		numIterations = inNumIterations;
@@ -160,8 +158,26 @@ public class GibbsSamplingLDA
 				br = new BufferedReader(new FileReader(pathToCorpus.get(i)));
 				List<Integer> document = new ArrayList<Integer>();
 				
+				Vector<Integer> stars= new Vector<Integer>();
+				
+				//get star to see if it should be add
+				String id=pathToCorpus.get(i).substring(44);
+				id=id.substring(0, id.length()-4);
+				BufferedReader br1;
+				br1 = new BufferedReader(new FileReader("/Users/QimingChen/Desktop/Yelp-Star/" +  id));
+				for (String num; (num = br1.readLine()) != null;) {
+					stars.add(Integer.parseInt(num));
+				}
+				
+				/////////////////////////////////////
+				
+				int line=1;
 				for (String doc; (doc = br.readLine()) != null;) {
-
+					if (stars.get(line) < stars.get(0) || stars.get(line) == stars.get(0)) { // only get negative
+						line++;
+						continue;
+					}
+					
 					if (doc.trim().length() == 0)
 						continue;
 					
@@ -192,15 +208,15 @@ public class GibbsSamplingLDA
 			e.printStackTrace();
 		}
 		
-		//write 
-		BufferedWriter writer = new BufferedWriter(new FileWriter(folderPath + "corpus."+ expName));
-		for (int i=0;i<numDocuments;i++) {
-			for(int j=0;j<corpus.get(i).size();j++){
-				writer.write(corpus.get(i).get(j)+" ");
-			}
-			writer.write("\n");
-		}
-		writer.close();
+//		//write 
+//		BufferedWriter writer = new BufferedWriter(new FileWriter(folderPath + "corpus."+ expName));
+//		for (int i=0;i<numDocuments;i++) {
+//			for(int j=0;j<corpus.get(i).size();j++){
+//				writer.write(corpus.get(i).get(j)+" ");
+//			}
+//			writer.write("\n");
+//		}
+//		writer.close();
 		
 		//get in hyper parameters
 		
@@ -577,10 +593,7 @@ public class GibbsSamplingLDA
 	{
 		BufferedWriter writer = new BufferedWriter(new FileWriter(folderPath
 			+ expName + ".theta"));
-	
 		for (int i = 0; i < numDocuments; i++) {
-			String review_id=corpusPath.get(i).substring(45, corpusPath.get(i).length()-4);
-			writer.write(review_id);
 			for (int j = 0; j < numTopics; j++) {
 				double pro = (docTopicCount[i][j] + alpha[i])
 					/ (sumDocTopicCount[i] + alphaSum);
@@ -632,8 +645,8 @@ public class GibbsSamplingLDA
 		
 		Vector<String> fileName = new Vector<String>();
 		File folder1 = new File(filePath);
-		String[] list1 = folder1.list();//990626
-		for (int i = 0; i < 1000; i++) {
+		String[] list1 = folder1.list();
+		for (int i = 0; i < list1.length; i++) {
 			if (i>0) {
 				String temp=list1[i].substring(6, list1[i].length()-4);
 				if (restaurant_id.contains(temp)) {
@@ -677,22 +690,20 @@ public class GibbsSamplingLDA
 		throws Exception
 	{
 		Vector<String> fileName;
-		fileName=getFileName("/Users/QimingChen/Desktop/Yelp_Review2");
+		fileName=getFileName("/Users/QimingChen/Desktop/Yelp_Review");
 		System.out.println(fileName.size());
 		String pathToVocab="/Users/QimingChen/Desktop/vocabulary28482";
 		String pathToOutput="/Users/QimingChen/Desktop/output";
 		
-		int numOfTopic=100;
+		int numOfTopic=50;
 		int numOfWord=100;
 		int numOfIter=1000;
 		double alpha=0.01;
 		double beta=0.33; // 1/numoftopic
-		GibbsSamplingLDA lda=new GibbsSamplingLDA(fileName,pathToVocab, numOfTopic, alpha, beta, numOfIter, numOfWord, "testtest",pathToOutput,20); //save every 20 iteration
+		GibbsSamplingLDA_group lda=new GibbsSamplingLDA_group(fileName,pathToVocab, numOfTopic, alpha, beta, numOfIter, numOfWord, "positive",pathToOutput,20); //save every 20 iteration
 
 		//GibbsSamplingLDA lda = new GibbsSamplingLDA("/Users/QimingChen/Desktop/Statistical NLP/project/jLDADMM_v1.0/src/models/test/corpus.txt", 7, 0.1,
 		//	0.01, 2000, 20, "testLDA");
 		lda.inference();
 	}
 }
-
-
