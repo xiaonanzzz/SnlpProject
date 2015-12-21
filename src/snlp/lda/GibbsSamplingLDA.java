@@ -1,4 +1,6 @@
-package project1;
+
+
+package snlp.lda;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -18,6 +20,8 @@ import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.Vector;
+
+import org.apache.commons.io.filefilter.AndFileFilter;
 
 /**
  * jLDADMM: A Java package for the LDA and DMM topic models
@@ -59,6 +63,9 @@ public class GibbsSamplingLDA
 	public HashMap<Integer, String> id2WordVocabulary; // Vocabulary to get word given an ID
 	public int vocabularySize; // The number of word types in the corpus
 
+	public HashMap<String, String> topic2word;
+	public HashMap<String, String> word2topic;
+	
 	// numDocuments * numTopics matrix
 	// Given a document: number of its words assigned to each topic
 	public int[][] docTopicCount;
@@ -109,7 +116,8 @@ public class GibbsSamplingLDA
 
 		
 		//numDocument=pathToCorpus.size();
-		numDocuments=pathToCorpus.size();
+		//numDocuments=pathToCorpus.size();
+		numDocuments=10;
 		
 		numTopics = inNumTopics;
 		numIterations = inNumIterations;
@@ -161,9 +169,10 @@ public class GibbsSamplingLDA
 					for (String word : words) {
 						String[] words2 = word.trim().split("[\\W&&[^\"']]");
 						for (String word2 : words2) {
-							//word2=word2.replaceAll("[0-9]", "");
-							//word2=word2.toLowerCase();
+							word2=word2.replaceAll("[0-9]", "");
+							word2=word2.toLowerCase();
 							
+							//if (word2IdVocabulary.containsKey(word2) && !document.contains(word2)) {
 							if (word2IdVocabulary.containsKey(word2)) {
 								document.add(word2IdVocabulary.get(word2));
 							}else{
@@ -568,7 +577,10 @@ public class GibbsSamplingLDA
 	{
 		BufferedWriter writer = new BufferedWriter(new FileWriter(folderPath
 			+ expName + ".theta"));
+	
 		for (int i = 0; i < numDocuments; i++) {
+			String review_id=corpusPath.get(i).substring(45, corpusPath.get(i).length()-4);
+			writer.write(review_id);
 			for (int j = 0; j < numTopics; j++) {
 				double pro = (docTopicCount[i][j] + alpha[i])
 					/ (sumDocTopicCount[i] + alphaSum);
@@ -602,18 +614,55 @@ public class GibbsSamplingLDA
 		writeTopicWordPros();
 	}
 	
-	public static Vector<String> getFileName(String filePath){
+	public static Vector<String> getFileName(String filePath) throws IOException{
+		List<String> restaurant_id = new ArrayList<String>();
+		restaurant_id=getRestaurantId();
+		
+		
+//		Vector<String> fileName = new Vector<String>();
+//		File folder1 = new File(filePath);
+//		String[] list1 = folder1.list();
+//		for (int i = 0; i < list1.length; i++) {
+//			if (i>0) {
+//				
+//				fileName.addElement(filePath+"/"+list1[i]);
+//			}
+//			
+//		}
+		
 		Vector<String> fileName = new Vector<String>();
 		File folder1 = new File(filePath);
-		String[] list1 = folder1.list();
-		for (int i = 0; i < list1.length; i++) {
+		String[] list1 = folder1.list();//990626
+		for (int i = 0; i < 1000; i++) {
 			if (i>0) {
-				fileName.addElement(filePath+"/"+list1[i]);
+				String temp=list1[i].substring(6, list1[i].length()-4);
+				if (restaurant_id.contains(temp)) {
+					fileName.addElement(filePath+"/"+list1[i]);
+				}	
 			}
 			
 		}
 		
 		return fileName;
+	}
+	
+	public static List<String> getRestaurantId() throws IOException{
+		
+		String pathToId="/Users/QimingChen/Desktop/restaurant_id";
+		List<String> id = new ArrayList<String>();
+		
+		BufferedReader br = null;
+		try {
+			br = new BufferedReader(new FileReader(pathToId));
+			for (String word; (word = br.readLine()) != null;) {
+				id.add(word);
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+		}
+		br.close();
+		return id;
 	}
 	
 	public double sumDouble(double[] input){
@@ -628,19 +677,22 @@ public class GibbsSamplingLDA
 		throws Exception
 	{
 		Vector<String> fileName;
-		fileName=getFileName("/Users/QimingChen/Desktop/Yelp_Review");
+		fileName=getFileName("/Users/QimingChen/Desktop/Yelp_Review2");
+		System.out.println(fileName.size());
 		String pathToVocab="/Users/QimingChen/Desktop/vocabulary28482";
 		String pathToOutput="/Users/QimingChen/Desktop/output";
 		
-		int numOfTopic=10;
-		int numOfWord=40;
+		int numOfTopic=100;
+		int numOfWord=100;
 		int numOfIter=1000;
 		double alpha=0.01;
 		double beta=0.33; // 1/numoftopic
-		GibbsSamplingLDA lda=new GibbsSamplingLDA(fileName,pathToVocab, numOfTopic, alpha, beta, numOfIter, numOfWord, "testLDA",pathToOutput);
+		GibbsSamplingLDA lda=new GibbsSamplingLDA(fileName,pathToVocab, numOfTopic, alpha, beta, numOfIter, numOfWord, "testtest",pathToOutput,20); //save every 20 iteration
 
 		//GibbsSamplingLDA lda = new GibbsSamplingLDA("/Users/QimingChen/Desktop/Statistical NLP/project/jLDADMM_v1.0/src/models/test/corpus.txt", 7, 0.1,
 		//	0.01, 2000, 20, "testLDA");
 		lda.inference();
 	}
 }
+
+

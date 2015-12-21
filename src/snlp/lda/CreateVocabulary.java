@@ -1,4 +1,4 @@
-package project1;
+package snlp.lda;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;

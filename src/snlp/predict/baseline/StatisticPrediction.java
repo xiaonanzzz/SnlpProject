@@ -58,8 +58,8 @@ public class StatisticPrediction implements Predictor{
 	 */
 	public static void main(String[] args) {
 		
-		ReviewReader reviewReader = new ReviewReader("./data/train-reviewstars.json");
-		ReviewReader testReader = new ReviewReader("./data/test-reviewstars.json");
+		ReviewReader reviewReader = new ReviewReader("./dirty data/train-rest-review-stars.json");
+		ReviewReader testReader = new ReviewReader("./dirty data/validate-rest-review-stars.json");
 		
 		try {
 			System.out.println("Reading training data...");
@@ -72,8 +72,9 @@ public class StatisticPrediction implements Predictor{
 			YelpPredictionEvaluator yelpPredictionEvaluator = new YelpPredictionEvaluator(testReader.readReviewStars(-1));
 			
 			System.out.println("Computing MAE...");
-			double mae = yelpPredictionEvaluator.copmuteMAE(statisticPrediction);
 			
+			double mae = yelpPredictionEvaluator.copmuteMAE(statisticPrediction);
+			yelpPredictionEvaluator.dump();
 			System.out.printf("MAE=%f\n", mae);
 			
 		} catch (IOException e) {
